@@ -4,3 +4,6 @@ version = "0.1.0"
 authors = ["Mohammad Samir <msamirdev92@gmail.com>"]
 
 [dependencies]
+rustc-serialize = "0.3.24"
+zookeeper = "0.3.0"
+clap = "2.26.0"
