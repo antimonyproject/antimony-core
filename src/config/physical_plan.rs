@@ -8,6 +8,7 @@ pub struct Instance{
     pub cmd: String,
     pub instance_type: Component,
     pub input_stream: Option<String>,
+    pub port: Option<i16>,
 }
 
 #[derive(Debug)]
@@ -30,7 +31,7 @@ impl PhysicalPlan{
     // Takes a topology_config object created from a config file
     // and builds an in-memory object of the physical mapping
     // sent to stream managers
-    pub fn from_config(config: &TopologyConfig, bin_dir: &String) -> Self{
+    pub fn from_config(config: &TopologyConfig, bin_dir: String) -> Self{
         let mut starting_port = 5000i16; // configurable
         let mut topology: HashMap<usize, TopologySM> = HashMap::new();
         let mut sm = 1;
@@ -43,6 +44,7 @@ impl PhysicalPlan{
 	                instance_type: instance.item_type.clone(),
 	                name: instance.name.to_string(),
 	                input_stream: instance.input_stream.clone(),
+                    port: Some(starting_port)
 	            };
 	            instances.push(ins);
 	            if instances.len() == config.instances_per_sm as usize{

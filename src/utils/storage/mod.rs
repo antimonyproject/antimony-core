@@ -1,5 +1,7 @@
 use zookeeper::{Acl, CreateMode, Watcher, WatchedEvent, ZooKeeper};
 use std::time::Duration;
+use config::topology_config::TopologyConfig;
+use rustc_serialize::json;
 
 
 struct LoggingWatcher;
@@ -13,7 +15,7 @@ pub enum Storage_type{
 
 pub struct Storage{
 	zk_connection: Option<ZooKeeper>,
-	topology_name: String
+	pub topology_name: String
 }
 
 impl Storage{
@@ -44,5 +46,27 @@ impl Storage{
                     CreateMode::Persistent);
 			}
 		}
+	}
+
+	pub fn write_config(self, config: &TopologyConfig){
+		if self.zk_connection.is_some(){
+			self.zk_connection.unwrap().set_data(
+				&format!("/antimony/{}/config", self.topology_name)[..],
+				json::encode(config).unwrap().into_bytes(),
+				None
+			);
+		}
+	}
+
+	pub fn get_config(self) -> String{
+		let mut config = String::new();
+		if self.zk_connection.is_some(){
+			let data = self.zk_connection.unwrap().get_data(
+				&format!("/antimony/{}/config", self.topology_name)[..],
+				true
+			);
+			config = String::from_utf8(data.unwrap().0).unwrap();
+		}
+		config
 	}
 }

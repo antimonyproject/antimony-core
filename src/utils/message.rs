@@ -29,11 +29,11 @@ impl Message{
 		unimplemented!();
 	}
 
-	fn encode(){
-		unimplemented!();
+	pub fn encoded(&self) -> String{
+		json::encode(&self).unwrap().to_string()
 	}
 
-	fn decode(){
+	pub fn decoded(){
 		unimplemented!();
 	}
 }
