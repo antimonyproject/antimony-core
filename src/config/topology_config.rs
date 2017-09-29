@@ -40,19 +40,19 @@ pub struct TopologyConfig{
 }
 
 impl TopologyConfig{
-	fn from_config_file(config_file: String, dir: String) -> TopologyConfig{
+    fn from_config_file(config_file: String, dir: String) -> TopologyConfig{
         let mut file = File::open(config_file).unwrap();
         let mut config = String::new();
         let _ = file.read_to_string(&mut config);
         let mut config: TopologyConfig = json::decode(&config).unwrap();
         config.topology_dir = Some(dir);
         config
-	}
+    }
 
     pub fn from_archive(topology_archive: &str,
                         storage: Storage) -> Self{
         let dir_path = "/tmp/antimony/"; // config file
-        DirBuilder::new().create(dir_path);
+        let _ = DirBuilder::new().create(dir_path);
         let dir_path = format!("/tmp/antimony/{}", storage.topology_name);
         match DirBuilder::new().create(&dir_path){
             Ok(_) => {},
@@ -79,13 +79,13 @@ impl TopologyConfig{
                 panic!("{}", e);
             }
         };
-        let mut config = TopologyConfig::from_config_file(
+        let config = TopologyConfig::from_config_file(
                                 format!("{}/topology.json", topology_dir), topology_dir);
         storage.write_config(&config);
         config
     }
 
-    pub fn from_storage(storage: Storage) -> Self{
+    pub fn from_storage(storage: &Storage) -> Self{
         let config = storage.get_config();
         let config: TopologyConfig = json::decode(&config).unwrap();
         config
