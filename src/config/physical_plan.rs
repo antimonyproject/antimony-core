@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use config::topology_config::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[derive(RustcDecodable, RustcEncodable)]
 pub struct Instance{
     pub name: String,
@@ -11,7 +11,7 @@ pub struct Instance{
     pub port: Option<i16>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[derive(RustcDecodable, RustcEncodable)]
 pub struct TopologySM{
     pub instances: Vec<Instance>,
@@ -22,12 +22,23 @@ pub struct TopologySM{
 }
 
 #[derive(RustcDecodable, RustcEncodable)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PhysicalPlan{
-    pub topology: HashMap<usize, TopologySM>
+    pub topology: HashMap<usize, TopologySM>,
+    pub self_id: usize,
+    pub self_ip: Option<String>
 }
 
 impl PhysicalPlan{
+
+    pub fn empty() -> Self{
+        PhysicalPlan{
+            topology: HashMap::new(),
+            self_id: 0,
+            self_ip: None
+        }
+    }
+
     // Takes a topology_config object created from a config file
     // and builds an in-memory object of the physical mapping
     // sent to stream managers
@@ -37,20 +48,20 @@ impl PhysicalPlan{
         let mut sm = 1;
         let mut instances: Vec<Instance> = Vec::new();
         for instance in &config.topology{
-            for i in 0..instance.instance_count{        	
-            	starting_port += 1;
-	            let ins = Instance{
-	                cmd: format!("{}/{}", bin_dir, &instance.name).to_string(),
-	                instance_type: instance.item_type.clone(),
-	                name: instance.name.to_string(),
-	                input_stream: instance.input_stream.clone(),
+            for i in 0..instance.instance_count{            
+                starting_port += 1;
+                let ins = Instance{
+                    cmd: format!("{}/{}", bin_dir, &instance.name).to_string(),
+                    instance_type: instance.item_type.clone(),
+                    name: instance.name.to_string(),
+                    input_stream: instance.input_stream.clone(),
                     port: Some(starting_port)
-	            };
-	            instances.push(ins);
-	            if instances.len() == config.instances_per_sm as usize{
-	                starting_port += 1;
-	                let topology_sm = TopologySM{
-	                    instances: instances,
+                };
+                instances.push(ins);
+                if instances.len() == config.instances_per_sm as usize{
+                    starting_port += 1;
+                    let topology_sm = TopologySM{
+                        instances: instances,
                         sm_id: starting_port,
                         ip: None,
                         port: Some(starting_port),
@@ -73,7 +84,9 @@ impl PhysicalPlan{
             topology.insert(sm.clone(), topology_sm);
         }
         let topology = PhysicalPlan{
-            topology: topology
+            topology: topology,
+            self_id: 0,
+            self_ip: None
         };
         topology
     }

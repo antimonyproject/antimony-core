@@ -1,11 +1,17 @@
 use config::physical_plan::PhysicalPlan;
 use rustc_serialize::json;
-use std::io::prelude::*;
+use tokio_core::net::TcpStream;
+use tokio_io;
+use futures::Future;
+use std;
+use tokio_uds::UnixStream;
+
 
 #[derive(Debug)]
 #[derive(RustcEncodable, RustcDecodable)]
 pub enum Message{
-    Data(String, String, String), //stream, dest, data
+    Data(String, String), //stream, data
+    Local(String), //local instances send their ids (sent to SM)
     Ready,
     Metrics,
     HeartBeat,
@@ -13,27 +19,55 @@ pub enum Message{
 }
 
 impl Message{
-	pub fn from_tcp() {
-		unimplemented!();
-	}
+    pub fn from_tcp(stream: TcpStream) -> Box<Future<Item = ((Self, TcpStream)), Error = std::io::Error > + Send> {
+        let buf = [0; 4];
+        Box::new(tokio_io::io::read(stream, buf).and_then(|x| {
+            let len = usize::from_str_radix(&String::from_utf8(x.1.to_vec()).unwrap(), 16).unwrap();
+            let buf = vec![0; len];
+            tokio_io::io::read_exact(x.0, buf).and_then(|x| {
+                Ok((json::decode(&String::from_utf8(x.1.to_vec()).unwrap()).unwrap(), x.0))
+            })
+        }))
+    }
 
-	pub fn to_tcp() {
-		unimplemented!();
-	}
+    pub fn to_tcp() {
+        unimplemented!();
+    }
 
-	pub fn from_uds() {
-		unimplemented!();
-	}
+    pub fn from_uds(stream: UnixStream) -> Box<Future<Item = ((Self, UnixStream)), Error = std::io::Error > + Send>{
+        let buf = [0; 4];
+        Box::new(tokio_io::io::read(stream, buf).and_then(|x| {
+            let len = usize::from_str_radix(&String::from_utf8(x.1.to_vec()).unwrap(), 16).unwrap();
+            let buf = vec![0; len];
+            tokio_io::io::read_exact(x.0, buf).and_then(|x| {
+                Ok((json::decode(&String::from_utf8(x.1.to_vec()).unwrap()).unwrap(), x.0))
+            })
+        }))
+    }
 
-	pub fn to_uds() {
-		unimplemented!();
-	}
+    pub fn from_half_uds(stream: tokio_io::io::ReadHalf<UnixStream>) -> Box<Future<Item = ((Self, tokio_io::io::ReadHalf<UnixStream>)), Error = std::io::Error > + Send>{
+        let buf = [0; 4];
+        Box::new(tokio_io::io::read(stream, buf).and_then(|x| {
+            let len = usize::from_str_radix(&String::from_utf8(x.1.to_vec()).unwrap(), 16).unwrap();
+            let buf = vec![0; len];
+            tokio_io::io::read_exact(x.0, buf).and_then(|x| {
+                Ok((json::decode(&String::from_utf8(x.1.to_vec()).unwrap()).unwrap(), x.0))
+            })
+        }))
+    }
 
-	pub fn encoded(&self) -> String{
-		json::encode(&self).unwrap().to_string()
-	}
+    pub fn to_uds(&self, stream: UnixStream) -> Box<Future<Item = (UnixStream), Error = std::io::Error > + Send> {
+            Box::new(tokio_io::io::write_all(stream, self.encoded()).and_then(|c| Ok(c.0)))
+    }
 
-	pub fn decoded(){
-		unimplemented!();
-	}
+    pub fn to_half_uds(&self, stream: tokio_io::io::WriteHalf<UnixStream>) -> Box<Future<Item = (tokio_io::io::WriteHalf<UnixStream>), Error = std::io::Error > + Send> {
+            Box::new(tokio_io::io::write_all(stream, self.encoded()).and_then(|c| Ok(c.0)))
+    }
+
+    pub fn encoded(&self) -> Vec<u8>{
+        let message = json::encode(&self).unwrap();
+        let message = format!("{:04x}{}", message.len(), message);
+        message.as_bytes().to_vec()
+    }
+
 }
